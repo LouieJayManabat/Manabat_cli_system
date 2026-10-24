@@ -22,7 +22,6 @@ public class Userdao {
 
     public void defaultAdminGenerator(Connection conn) {
         String checkSql = "SELECT COUNT(*) FROM users WHERE roles = 'ADMIN'";
-        // Fixed: Omitted 'id' since it is auto-incremented, matching the 4 values correctly
         String insertSql = "INSERT INTO users(username, password, roles, status) VALUES('admin', 'admin123', 'ADMIN', 'APPROVED')";
 
         try (Statement stmt = conn.createStatement();
@@ -37,7 +36,6 @@ public class Userdao {
     }
 
     public boolean registerUser(String username, String password, String roles) {
-        // Fixed: Matched the 4 columns to the 4 placeholders (?)
         String sql = "INSERT INTO users(username, password, roles, status) VALUES(?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstm = conn.prepareStatement(sql)) {
@@ -113,5 +111,51 @@ public class Userdao {
         }
 
         return usersList;
+    }
+
+    public List<user> getPendingUsers() {
+        List<user> pendingList = new ArrayList<>();
+        String sql = "SELECT id, username, password, roles, status FROM users WHERE status = 'PENDING'";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                pendingList.add(new user(
+                        rs.getInt("id"),
+                        rs.getString("username"),
+                        rs.getString("password"),
+                        rs.getString("roles"),
+                        rs.getString("status")
+                ));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching pending users: " + e.getMessage());
+        }
+
+        return pendingList;
+    }
+
+    public boolean approveUser(int userId) {
+        String sql = "UPDATE users SET status = 'APPROVED' WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            int rowsUpdated = pstmt.executeUpdate();
+
+            if (rowsUpdated > 0) {
+                System.out.println("User ID " + userId + " approved successfully.");
+                return true;
+            } else {
+                System.out.println("User ID not found or already approved.");
+            }
+        } catch (SQLException e) {
+            System.err.println("Error approving user: " + e.getMessage());
+        }
+
+        return false;
     }
 }

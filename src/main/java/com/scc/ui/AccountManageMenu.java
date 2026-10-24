@@ -1,4 +1,5 @@
 package com.scc.ui;
+
 import com.scc.dao.Userdao;
 import com.scc.model.user;
 
@@ -10,8 +11,8 @@ public class AccountManageMenu {
     private final Userdao userdao;
     private final Scanner scanner;
 
-    public AccountManageMenu(Userdao Userdao, Scanner scanner) {
-        this.userdao = Userdao;
+    public AccountManageMenu(Userdao userdao, Scanner scanner) {
+        this.userdao = userdao;
         this.scanner = scanner;
     }
 
@@ -34,6 +35,12 @@ public class AccountManageMenu {
 
             switch (choice) {
                 case "1" -> viewAllUser();
+                case "2" -> viewPendingUsers();
+                case "3" -> approveUser();
+                case "7" -> {
+                    System.out.println("Logging out...");
+                    loggedIn = false;
+                }
                 default -> System.out.println("-> [ERROR] invalid Option");
             }
         }
@@ -57,5 +64,37 @@ public class AccountManageMenu {
 
     private void viewAllUser() {
         displayUserTable(userdao.getAllUser(), "ALL REGISTERED USER");
+    }
+
+    private void viewPendingUsers() {
+        displayUserTable(userdao.getPendingUsers(), "PENDING APPROVALS");
+    }
+
+    private void approveUser() {
+        List<user> pendingUsers = userdao.getPendingUsers();
+        displayUserTable(pendingUsers, "PENDING APPROVALS");
+
+        if (pendingUsers.isEmpty()) {
+            return;
+        }
+
+        System.out.print("Enter user ID to approve (or 0 to cancel): ");
+        try {
+            int userId = Integer.parseInt(scanner.nextLine().trim());
+            if (userId == 0) {
+                System.out.println("Operation canceled by the user.");
+                return;
+            }
+
+            boolean exists = pendingUsers.stream().anyMatch(u -> u.id() == userId);
+            if (!exists) {
+                System.out.println("User ID not found in pending list.");
+                return;
+            }
+
+            userdao.approveUser(userId);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Please enter a numerical User ID.");
+        }
     }
 }
