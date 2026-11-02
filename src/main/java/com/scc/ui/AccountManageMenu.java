@@ -37,6 +37,7 @@ public class AccountManageMenu {
                 case "1" -> viewAllUser();
                 case "2" -> viewPendingUsers();
                 case "3" -> approveUser();
+                case "5" -> updateUserProcess(admin);
                 case "7" -> {
                     System.out.println("Logging out...");
                     loggedIn = false;
@@ -78,23 +79,100 @@ public class AccountManageMenu {
             return;
         }
 
-        System.out.print("Enter user ID to approve (or 0 to cancel): ");
-        try {
-            int userId = Integer.parseInt(scanner.nextLine().trim());
-            if (userId == 0) {
-                System.out.println("Operation canceled by the user.");
-                return;
-            }
+        int userId = readIntInput("Enter user ID to approve (or 0 to cancel): ");
+        if (userId == 0) {
+            System.out.println("Operation canceled by the user.");
+            return;
+        }
 
-            boolean exists = pendingUsers.stream().anyMatch(u -> u.id() == userId);
-            if (!exists) {
-                System.out.println("User ID not found in pending list.");
-                return;
-            }
+        boolean exists = pendingUsers.stream().anyMatch(u -> u.id() == userId);
+        if (!exists) {
+            System.out.println("User ID not found in pending list.");
+            return;
+        }
 
-            userdao.approveUser(userId);
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Please enter a numerical User ID.");
+        userdao.approveUser(userId);
+    }
+
+    private void updateUserProcess(user admin) {
+        List<user> users = userdao.getAllUser();
+        displayUserTable(users, "SELECT USER TO UPDATE");
+
+        if (users.isEmpty()) {
+            return;
+        }
+
+        int userId = readIntInput("Enter selected ID to update (or 0 to cancel): ");
+        if (userId == 0) {
+            System.out.println("Operation cancelled.");
+            return;
+        }
+
+        if (userId == admin.id()) {
+            System.out.println("-> [WARNING] Modifying current active admin is restricted. You cannot update your own account.");
+            return;
+        }
+
+        boolean exists = users.stream().anyMatch(u -> u.id() == userId);
+        if (!exists) {
+            System.out.println("User ID not found.");
+            return;
+        }
+
+        String newRole = readValidRole();
+        if (newRole == null) {
+            System.out.println("Operation cancelled.");
+            return;
+        }
+
+        String newStatus = readValidStatus();
+        if (newStatus == null) {
+            System.out.println("Operation cancelled.");
+            return;
+        }
+
+        userdao.updateUser(userId, newRole, newStatus);
+    }
+
+    private int readIntInput(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = scanner.nextLine().trim();
+            try {
+                return Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a valid numeric ID.");
+            }
+        }
+    }
+
+    private String readValidRole() {
+        while (true) {
+            System.out.print("Enter new role [ADMIN, EMPLOYEE, STAFF] (or 'cancel' to abort): ");
+            String role = scanner.nextLine().trim().toUpperCase();
+
+            if (role.equals("0") || role.equalsIgnoreCase("CANCEL")) {
+                return null;
+            }
+            if (role.equals("ADMIN") || role.equals("EMPLOYEE") || role.equals("STAFF")) {
+                return role;
+            }
+            System.out.println("-> [ERROR] Invalid role. Please choose ADMIN, EMPLOYEE, or STAFF.");
+        }
+    }
+
+    private String readValidStatus() {
+        while (true) {
+            System.out.print("Enter new status [APPROVED, PENDING] (or 'cancel' to abort): ");
+            String status = scanner.nextLine().trim().toUpperCase();
+
+            if (status.equals("0") || status.equalsIgnoreCase("CANCEL")) {
+                return null;
+            }
+            if (status.equals("APPROVED") || status.equals("PENDING")) {
+                return status;
+            }
+            System.out.println("-> [ERROR] Invalid status. Please choose APPROVED or PENDING.");
         }
     }
 }
