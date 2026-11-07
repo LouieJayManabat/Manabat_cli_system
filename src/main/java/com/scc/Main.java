@@ -6,7 +6,7 @@ import com.scc.ui.Authentication;
 
 import java.util.Scanner;
 
-public class Main {
+public class 1Main {
 
     public static void main(String[] args) {
         DatabaseInitializer.initializer();

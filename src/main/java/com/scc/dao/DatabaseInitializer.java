@@ -7,8 +7,7 @@ import java.sql.Statement;
 public class DatabaseInitializer {
 
     public static void initializer() {
-        // Updated to use 'id' to match your database schema and DAO queries
-        String createTableSQL = """
+        String createUsersTable = """
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
@@ -18,11 +17,23 @@ public class DatabaseInitializer {
             );
         """;
 
+        String createLogsTable = """
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                action_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+        """;
+
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement()) {
 
-            stmt.execute(createTableSQL);
-            System.out.println("Database successfully initialized.");
+            stmt.execute(createUsersTable);
+            stmt.execute(createLogsTable);
+            System.out.println("Database and tables successfully initialized.");
 
         } catch (SQLException e) {
             System.err.println("Initialization error: " + e.getMessage());

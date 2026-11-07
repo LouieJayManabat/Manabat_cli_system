@@ -1,6 +1,8 @@
 package com.scc.ui;
 
+import com.scc.dao.ActivityLogDao;
 import com.scc.dao.Userdao;
+import com.scc.model.ActivityLog;
 import com.scc.model.user;
 
 import java.util.List;
@@ -9,10 +11,12 @@ import java.util.Scanner;
 public class AccountManageMenu {
 
     private final Userdao userdao;
+    private final ActivityLogDao logDao;
     private final Scanner scanner;
 
     public AccountManageMenu(Userdao userdao, Scanner scanner) {
         this.userdao = userdao;
+        this.logDao = new ActivityLogDao();
         this.scanner = scanner;
     }
 
@@ -25,20 +29,21 @@ public class AccountManageMenu {
             System.out.println("1. View All Users");
             System.out.println("2. View Pending User Approvals");
             System.out.println("3. Approve User Registration");
-            System.out.println("4. Add New User");
-            System.out.println("5. Update User identity / Status");
-            System.out.println("6. Delete User Account");
-            System.out.println("7. Logout");
-            System.out.print("Choose an option (1-7): ");
+            System.out.println("4. Update User identity / Status");
+            System.out.println("5. View System Audit Logs");
+            System.out.println("6. Logout");
+            System.out.print("Choose an option (1-6): ");
 
             String choice = scanner.nextLine().trim();
 
             switch (choice) {
                 case "1" -> viewAllUser();
                 case "2" -> viewPendingUsers();
-                case "3" -> approveUser();
-                case "5" -> updateUserProcess(admin);
-                case "7" -> {
+                case "3" -> approveUser(admin);
+                case "4" -> updateUserProcess(admin);
+                case "5" -> auditLogsMenu();
+                case "6" -> {
+                    logDao.logAction(admin.id(), "USER_LOGOUT", "Admin " + admin.username() + " (ID: " + admin.id() + ") logged out.");
                     System.out.println("Logging out...");
                     loggedIn = false;
                 }
@@ -71,7 +76,7 @@ public class AccountManageMenu {
         displayUserTable(userdao.getPendingUsers(), "PENDING APPROVALS");
     }
 
-    private void approveUser() {
+    private void approveUser(user admin) {
         List<user> pendingUsers = userdao.getPendingUsers();
         displayUserTable(pendingUsers, "PENDING APPROVALS");
 
@@ -91,7 +96,9 @@ public class AccountManageMenu {
             return;
         }
 
-        userdao.approveUser(userId);
+        if (userdao.approveUser(userId)) {
+            logDao.logAction(admin.id(), "USER_APPROVED", "Admin " + admin.id() + " approved account for User ID " + userId);
+        }
     }
 
     private void updateUserProcess(user admin) {
@@ -131,7 +138,65 @@ public class AccountManageMenu {
             return;
         }
 
-        userdao.updateUser(userId, newRole, newStatus);
+        if (userdao.updateUser(userId, newRole, newStatus)) {
+            logDao.logAction(admin.id(), "USER_UPDATED", "Admin " + admin.id() + " changed role of User " + userId + " to " + newRole);
+        }
+    }
+
+    private void auditLogsMenu() {
+        boolean inAuditMenu = true;
+        while (inAuditMenu) {
+            System.out.println("\n=================================");
+            System.out.println("       SYSTEM AUDIT LOGS         ");
+            System.out.println("=================================");
+            System.out.println("1. View All System Logs");
+            System.out.println("2. Filter Logs by User ID");
+            System.out.println("3. Clear Historical Logs");
+            System.out.println("4. Back to Admin Dashboard");
+            System.out.print("Choose an option (1-4): ");
+
+            String choice = scanner.nextLine().trim();
+            switch (choice) {
+                case "1" -> displayLogs(logDao.getAllLogs(), "ALL SYSTEM AUDIT LOGS");
+                case "2" -> {
+                    int userId = readIntInput("Enter User ID to filter: ");
+                    displayLogs(logDao.getLogsByUserId(userId), "LOGS FOR USER ID: " + userId);
+                }
+                case "3" -> {
+                    System.out.print("Are you sure you want to clear all audit logs? (y/n): ");
+                    System.out.println();
+                    String confirm = scanner.nextLine().trim();
+                    if (confirm.equalsIgnoreCase("y")) {
+                        if (logDao.clearLogs()) {
+                            System.out.println("-> All activity logs cleared successfully.");
+                        } else {
+                            System.out.println("-> Failed to clear logs.");
+                        }
+                    } else {
+                        System.out.println("-> Operation cancelled.");
+                    }
+                }
+                case "4" -> inAuditMenu = false;
+                default -> System.out.println("-> [ERROR] Invalid Option. Please choose between 1 and 4.");
+            }
+        }
+    }
+
+    private void displayLogs(List<ActivityLog> logs, String title) {
+        System.out.println("\n==================================================================================================");
+        System.out.println("                                " + title);
+        System.out.println("==================================================================================================");
+        if (logs.isEmpty()) {
+            System.out.println("-> No Activity Logs Found.");
+            return;
+        }
+        System.out.printf("%-5s | %-8s | %-18s | %-35s | %-20s%n", "ID", "User ID", "Action Type", "Description", "Timestamp");
+        System.out.println("--------------------------------------------------------------------------------------------------");
+        for (ActivityLog log : logs) {
+            System.out.printf("%-5s | %-8s | %-18s | %-35s | %-20s%n",
+                    log.id(), log.userId(), log.actionType(), log.description(), log.timestamp());
+        }
+        System.out.println("==================================================================================================");
     }
 
     private int readIntInput(String prompt) {

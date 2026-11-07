@@ -1,5 +1,6 @@
 package com.scc.ui;
 
+import com.scc.dao.ActivityLogDao;
 import com.scc.dao.Userdao;
 import com.scc.model.user;
 
@@ -7,35 +8,41 @@ import java.util.Scanner;
 
 public class Authentication {
     private final Userdao userDao;
+    private final ActivityLogDao logDao;
     private final Scanner scanner;
 
     public Authentication(Userdao userDao, Scanner scanner) {
         this.userDao = userDao;
+        this.logDao = new ActivityLogDao();
         this.scanner = scanner;
     }
 
     public void start() {
-        System.out.println("\n================================");
-        System.out.println(" Employee Attendance Management System");
-        System.out.println("================================");
-        System.out.println("1. Login");
-        System.out.println("2. Register");
-        System.out.println("3. Exit");
-        System.out.print("Choose an option: ");
-        String choice = scanner.nextLine();
+        boolean running = true;
+        while (running) {
+            System.out.println("\n================================");
+            System.out.println(" Employee Attendance Management System");
+            System.out.println("================================");
+            System.out.println("1. Login");
+            System.out.println("2. Register");
+            System.out.println("3. Exit");
+            System.out.print("Choose an option: ");
+            String choice = scanner.nextLine().trim();
 
-        switch (choice) {
-            case "1":
-                handleLogin();
-                break;
-            case "2":
-                handleRegister();
-                break;
-            case "3":
-                System.out.println("Exiting application. Goodbye!");
-                break;
-            default:
-                System.out.println("Invalid option selected!");
+            switch (choice) {
+                case "1":
+                    handleLogin();
+                    break;
+                case "2":
+                    handleRegister();
+                    break;
+                case "3":
+                    System.out.println("Exiting application. Goodbye!");
+                    running = false;
+                    break;
+                default:
+                    System.out.println("Invalid option selected!");
+            }
         }
     }
 
@@ -48,6 +55,7 @@ public class Authentication {
         user loggedInUser = userDao.login(username, password);
 
         if (loggedInUser != null) {
+            logDao.logAction(loggedInUser.id(), "USER_LOGIN", "User " + loggedInUser.username() + " (ID: " + loggedInUser.id() + ") logged in.");
             System.out.println("\n -> Welcome " + loggedInUser.username() + " | roles: " + loggedInUser.roles());
 
             switch (loggedInUser.roles().toUpperCase()) {
@@ -66,8 +74,13 @@ public class Authentication {
         String password = scanner.nextLine();
 
         System.out.print("Select a role [1] Employee [2] Staff [3] Administrator: ");
-        int rolesChoice = scanner.nextInt();
-        scanner.nextLine(); // Consume remaining newline character
+        int rolesChoice;
+        try {
+            rolesChoice = Integer.parseInt(scanner.nextLine().trim());
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid role choice!");
+            return;
+        }
         String roles;
 
         switch (rolesChoice) {
